@@ -1,0 +1,4 @@
+name = "image-merge-worker"
+main = "src/index.js"
+compatibility_date = "2026-07-06"
+compatibility_flags = ["nodejs_compat"]

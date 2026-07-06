@@ -1,0 +1,6 @@
+{
+  "name": "image-merge-worker",
+  "dependencies": {
+    "@cf-wasm/photon": "^0.1.15"
+  }
+}
