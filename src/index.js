@@ -30,8 +30,8 @@ export default {
       image1 = PhotonImage.new_from_byteslice(new Uint8Array(buf1));
       image2 = PhotonImage.new_from_byteslice(new Uint8Array(buf2));
 
-      // image2를 image1 위 (0,0) 위치에 합성합니다.
-      watermark(image1, image2, 0, 0);
+      // x, y 좌표는 반드시 BigInt(0n)로 전달해야 합니다.
+      watermark(image1, image2, 0n, 0n);
 
       const outputBytes = image1.get_bytes_webp();
 
