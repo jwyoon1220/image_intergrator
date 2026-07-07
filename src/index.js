@@ -3,37 +3,33 @@ import { PhotonImage, watermark } from "@cf-wasm/photon";
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const img1Url = url.searchParams.get('img1');
-    const img2Url = url.searchParams.get('img2');
 
-    if (!img1Url || !img2Url) {
-      return new Response('img1과 img2 URL 파라미터가 필요합니다.', { status: 400 });
+    // ?img=url1&img=url2&img=url3 형식으로 받기
+    const imgUrls = url.searchParams.getAll('img');
+
+    if (imgUrls.length < 2) {
+      return new Response('img=URL1&img=URL2 형식으로 최소 2개 이상의 이미지 URL이 필요합니다.', { status: 400 });
     }
 
-    let image1, image2;
+    let images = [];
 
     try {
-      const [res1, res2] = await Promise.all([
-        fetch(img1Url),
-        fetch(img2Url)
-      ]);
+      const responses = await Promise.all(imgUrls.map(u => fetch(u)));
 
-      if (!res1.ok || !res2.ok) {
-        return new Response('이미지를 불러오는 데 실패했습니다.', { status: 500 });
+      const failedIndex = responses.findIndex(r => !r.ok);
+      if (failedIndex !== -1) {
+        return new Response(`이미지를 불러오는 데 실패했습니다: img[${failedIndex}] (${imgUrls[failedIndex]})`, { status: 500 });
       }
 
-      const [buf1, buf2] = await Promise.all([
-        res1.arrayBuffer(),
-        res2.arrayBuffer()
-      ]);
+      const buffers = await Promise.all(responses.map(r => r.arrayBuffer()));
+      images = buffers.map(buf => PhotonImage.new_from_byteslice(new Uint8Array(buf)));
 
-      image1 = PhotonImage.new_from_byteslice(new Uint8Array(buf1));
-      image2 = PhotonImage.new_from_byteslice(new Uint8Array(buf2));
+      const base = images[0];
+      for (let idx = 1; idx < images.length; idx++) {
+        watermark(base, images[idx], 0n, 0n);
+      }
 
-      // x, y 좌표는 반드시 BigInt(0n)로 전달해야 합니다.
-      watermark(image1, image2, 0n, 0n);
-
-      const outputBytes = image1.get_bytes_webp();
+      const outputBytes = base.get_bytes_webp();
 
       return new Response(outputBytes, {
         headers: {
@@ -45,8 +41,7 @@ export default {
     } catch (error) {
       return new Response(`에러 발생: ${error.message}`, { status: 500 });
     } finally {
-      image1?.free();
-      image2?.free();
+      images.forEach(img => img?.free());
     }
   }
 };
